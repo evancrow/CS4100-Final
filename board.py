@@ -1,6 +1,7 @@
 from random import shuffle
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, Union
 
+from structure import Structure
 from tile import Tile
 from edge import Edge
 from intersection import Intersection
@@ -55,6 +56,44 @@ class Board:
             if location in self.edges:
                 return self.edges[location].road
         return None
+
+    def get_all_at_location(self, location: Location) -> [Structure]:
+        """
+        Gets all the edges/intersections at the given location.
+        For example:
+        1. A structure.
+        2. All the roads with at least one end touching the coord.
+
+        :param location: The location to check.
+        :return: All edges or intersections.
+        """
+        structures = []
+
+        if location.is_intersection():
+            intersection = self.get_at_location(location)
+            if intersection:
+                structures.append(intersection)
+
+            for edge_loc, edge in self.edges.items():
+                edge_start, edge_end = edge_loc.coords
+                if edge_start == location.coords or edge_end == location.coords:
+                    structures.append(edge)
+                    
+        elif location.is_edge():
+            edge = self.get_at_location(location)
+            if edge:
+                structures.append(edge)
+
+            start, end = location.coords
+            start_intersection = self.get_at_location(Location.intersection(start[0], start[1]))
+            end_intersection = self.get_at_location(Location.intersection(end[0], end[1]))
+            
+            if start_intersection:
+                structures.append(start_intersection)
+            if end_intersection:
+                structures.append(end_intersection)
+                
+        return structures
     
     def get_at_location(self, location: Location) -> Optional[Edge or Intersection]:
         """
@@ -137,7 +176,7 @@ class Board:
                                 adjacent_tiles.append(grid[(adj_q, adj_r)])
                                 break
                     
-                    intersections[location] = Intersection(adjacent_tiles)
+                    intersections[location] = Intersection(adjacent_tiles, location)
         
         # Now connect intersections and create edges.
         for tile_coord in grid.keys():
@@ -155,7 +194,7 @@ class Board:
                 edge_location = Location.edge(location1.coords, location2.coords)
                 
                 if edge_location not in edges:
-                    edge = Edge(intersections[location1], intersections[location2])
+                    edge = Edge(intersections[location1], intersections[location2], edge_location)
                     edges[edge_location] = edge
 
                     intersections[location1].add_intersection(intersections[location2])

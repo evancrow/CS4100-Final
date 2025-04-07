@@ -19,7 +19,7 @@ class Location(NamedTuple):
         return Location(sorted_coords, Location.Type.EDGE)
     
     def is_intersection(self) -> bool:
-        return self.type == Location.type.INTERSECTION
+        return self.type == Location.Type.INTERSECTION
     
     def is_edge(self) -> bool:
         return self.type == Location.Type.EDGE
