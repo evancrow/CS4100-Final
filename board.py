@@ -1,6 +1,7 @@
 from random import shuffle
 from typing import Tuple, Dict, Optional, Union
 
+from player import Player
 from structure import Structure
 from tile import Tile
 from edge import Edge
@@ -107,6 +108,58 @@ class Board:
         elif location.is_edge():
             return self.edges.get(location)
         return None
+
+    def can_build_road(self, player: Player, edge: Edge) -> bool:
+        """
+        Check if a player can build a road on this edge.
+        A player can build a road if:
+        1. There is no road on this edge already.
+        2. The player has a settlement or city at one of the connected intersections.
+        3. The player has a road connected to this edge at one of the intersections.
+
+        :param player: The player who wants to build a road.
+        :param board: The current board.
+        :return: True if the player can build a road, False otherwise.
+        """
+        if edge.road is not None:
+            return False
+
+        all_connected = self.get_all_at_location(edge.location)
+        for item in all_connected:
+            if item.owner == player:
+                return True
+
+        return False
+
+    def can_build_structure(self, player: Player, intersection: Intersection) -> bool:
+        """
+        Check if a structure can be built at this intersection.
+        A player can build a structure if:
+        1. There is no structure at this intersection.
+        2. There are no structures at adjacent intersections.
+        3. Player must have roads to the structure.
+
+        :param player: The player who wants to build.
+        :param board: The game board.
+        :return: True if a structure can be built, False otherwise.
+        """
+        if intersection.structure is not None:
+            return False
+
+        # Check if there are any structures at adjacent intersections.
+        for intersection in intersection.adjacent_intersections:
+            if intersection.structure is not None:
+                return False
+
+        if player and intersection.location:
+            for item in self.get_all_at_location(intersection.location):
+                # Check if edge (by seeing if it has road), and that owners match.
+                if hasattr(item, 'road') and item.road is not None and item.road.owner == player:
+                    return True
+
+            return False
+
+        return True
 
     @staticmethod
     def create_default_board():

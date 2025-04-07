@@ -1,7 +1,6 @@
 from uuid import uuid4
-from typing import List, Optional
+from typing import List
 
-from board import Board
 from player import Player
 from structure import Structure
 from tile import Tile
@@ -23,36 +22,6 @@ class Intersection:
         """
         self.adjacent_intersections.append(intersection)
 
-    def can_build_structure(self, player: Player, board: Board) -> bool:
-        """
-        Check if a structure can be built at this intersection.
-        A player can build a structure if:
-        1. There is no structure at this intersection.
-        2. There are no structures at adjacent intersections.
-        3. Player must have roads to the structure.
-
-        :param player: The player who wants to build.
-        :param board: The game board.
-        :return: True if a structure can be built, False otherwise.
-        """
-        if self.structure is not None:
-            return False
-
-        # Check if there are any structures at adjacent intersections.
-        for intersection in self.adjacent_intersections:
-            if intersection.structure is not None:
-                return False
-
-        if player and self.location:
-            for item in board.get_all_at_location(self.location):
-                # Check if edge (by seeing if it has road), and that owners match.
-                if hasattr(item, 'road') and item.road is not None and item.road.owner == player:
-                    return True
-
-            return False
-
-        return True
-    
     def can_upgrade_to_city(self, player: Player) -> bool:
         """
         Check if the player can upgrade a settlement to a city at this intersection.
@@ -74,7 +43,7 @@ class Intersection:
         :return: The built structure.
         """
         if structure_type == Structure.Type.SETTLEMENT:
-            assert self.can_build_structure(), "Cannot build settlement here"
+            assert self.structure is None, "Cannot build settlement here"
         elif structure_type == Structure.Type.CITY:
             assert self.can_upgrade_to_city(player), "Cannot upgrade to city here"
         

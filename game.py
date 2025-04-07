@@ -89,7 +89,7 @@ class Game:
         if structure_type == Structure.Type.ROAD:
             if location.is_edge():
                 edge = game_element
-                if edge.can_build_road(player, self.board):
+                if self.board.can_build_road(player, edge):
                     player.made_structure(structure_type)
                     edge.build(player)
                     return True
@@ -97,7 +97,7 @@ class Game:
         elif structure_type == Structure.Type.SETTLEMENT:
             if location.is_intersection():
                 intersection = game_element
-                if intersection.can_build_structure(player, self.board):
+                if self.board.can_build_structure(player, intersection):
                     player.made_structure(structure_type)
                     intersection.build_structure(structure_type, player)
                     return True

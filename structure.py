@@ -1,7 +1,6 @@
 from enum import Enum
 from uuid import uuid4
 
-from player import Player
 from tile import Tile
 
 class Structure:
@@ -19,7 +18,7 @@ class Structure:
                 return {Tile.Type.GRAIN: 2, Tile.Type.ORE: 3}
             return {}
 
-    def __init__(self, tile_type: Type, owner: Player):
+    def __init__(self, tile_type: Type, owner):
         self.id = uuid4()
         self.type = tile_type
         self.owner = owner
