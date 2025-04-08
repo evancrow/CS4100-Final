@@ -5,8 +5,8 @@ from structure import Structure
 
 
 class Player:
-    def __init__(self):
-        self.id = uuid4()
+    def __init__(self, name: str):
+        self.id = name
         self.cards: [Card] = []
         self.points = 0
 

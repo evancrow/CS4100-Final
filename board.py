@@ -16,7 +16,6 @@ DEFAULT_TILE_RATIO = {
     Tile.Type.GRAIN: 4,
     Tile.Type.ORE: 3,
     Tile.Type.BRICK: 3,
-    Tile.Type.DESERT: 1,
 }
 
 DEFAULT_ROLL_RATIOS = {
@@ -118,7 +117,7 @@ class Board:
         3. The player has a road connected to this edge at one of the intersections.
 
         :param player: The player who wants to build a road.
-        :param board: The current board.
+        :param edge: The edge to check.
         :return: True if the player can build a road, False otherwise.
         """
         if edge.road is not None:
@@ -140,7 +139,7 @@ class Board:
         3. Player must have roads to the structure.
 
         :param player: The player who wants to build.
-        :param board: The game board.
+        :param intersection: The intersection to check.
         :return: True if a structure can be built, False otherwise.
         """
         if intersection.structure is not None:
@@ -181,10 +180,12 @@ class Board:
         shuffle(rolls)
 
         # Combine the tiles and rolls.
-        tiles = []
+        tiles = [Tile(Tile.Type.DESERT, 0)]
 
         for tile_type, roll in zip(tile_types, rolls):
             tiles.append(Tile(tile_type, roll))
+
+        shuffle(tiles)
 
         index = 0
         grid = {}

@@ -7,6 +7,7 @@ from location import Location
 import random
 from typing import List, Optional
 
+VICTORY_POINTS_TO_WIN = 10
 
 class Game:
     def __init__(self, board: Board, players: List[Player]):
@@ -14,28 +15,16 @@ class Game:
 
         self.board = board
         self.players = players
+
+        random.shuffle(self.players)
+        
         self.current_player_index = 0
         self.current_player = players[0]
-        self.winner = None
-        self.victory_points_to_win = 10
+        self.last_settlement_placed = None
+        self.first_round_settlements = { player.id: [] for player in players }
 
-    def run_game(self):
-        """
-        Runs an infinite loop of the game until someone wins.
-        Works by, rolling, allowing player to make a move, ending turn, next player, repeat.
-        """
-        while self.winner is None:
-            roll_value = self.roll()
-            self.handle_roll(roll_value)
-            
-            # TODO: Allow user to make choices and input here.
-            
-            self.end_turn()
-            self.winner = self.game_winner()
-            
-        return self.winner
-
-    def roll(self) -> int:
+    @staticmethod
+    def roll() -> int:
         """
         Rolls the die
         :return: The roll.
@@ -53,6 +42,9 @@ class Game:
             # At least for now, not implementing to keep it simple.
             pass
         else:
+            # Keep track of resources gained to print a summary
+            resources_gained = {player.id: [] for player in self.players}
+            
             for coord, tile in self.board.grid.items():
                 if tile.roll == roll and tile.type != Tile.Type.DESERT:
                     for location, intersection in self.board.intersections.items():
@@ -65,10 +57,13 @@ class Game:
 
                             if intersection.structure.type == Structure.Type.SETTLEMENT:
                                 player.add_card(Card(tile.type))
+                                resources_gained[player.id].append(tile.type)
 
                             elif intersection.structure.type == Structure.Type.CITY:
                                 player.add_card(Card(tile.type))
                                 player.add_card(Card(tile.type))
+                                resources_gained[player.id].append(tile.type)
+                                resources_gained[player.id].append(tile.type)
 
     def build(self, structure_type: Structure.Type, location: Location) -> bool:
         """
@@ -79,6 +74,7 @@ class Game:
         """
         player = self.current_player
 
+        # Check if player has the required resources.
         if not player.can_make_structure(Structure(structure_type, player)):
             return False
 
@@ -126,7 +122,7 @@ class Game:
         :return: The winning player or None.
         """
         for player in self.players:
-            if player.points >= self.victory_points_to_win:
+            if player.points >= VICTORY_POINTS_TO_WIN:
                 return player
         
         return None

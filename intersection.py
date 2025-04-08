@@ -14,7 +14,6 @@ class Intersection:
         self.location = location
 
     def add_intersection(self, intersection: 'Intersection'):
-
         """
         Add an adjacent intersection to this intersection.
         
