@@ -9,6 +9,7 @@ class Intersection:
     def __init__(self, tiles: List[Tile], location=None):
         self.id = uuid4()
         self.structure = None
+        self.owner = None
         self.adjacent_intersections: List['Intersection'] = []
         self.adjacent_tiles = tiles
         self.location = location
@@ -19,7 +20,8 @@ class Intersection:
         
         :param intersection: The intersection to add.
         """
-        self.adjacent_intersections.append(intersection)
+        if intersection not in self.adjacent_intersections:
+            self.adjacent_intersections.append(intersection)
 
     def can_upgrade_to_city(self, player: Player) -> bool:
         """
@@ -49,4 +51,5 @@ class Intersection:
         assert structure_type != Structure.Type.ROAD, "Cannot build roads at intersections"
         
         self.structure = Structure(structure_type, player)
+        self.owner = player
         return self.structure

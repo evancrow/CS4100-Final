@@ -5,10 +5,11 @@ from structure import Structure
 
 
 class Player:
-    def __init__(self, name: str):
+    def __init__(self, name: str, color: (int, int, int)):
         self.id = name
         self.cards: [Card] = []
         self.points = 0
+        self.color = color
 
     def add_card(self, card: Card):
         """
@@ -61,7 +62,7 @@ class Player:
             for _ in range(count):
                 self.use_card_of_type(card_type)
 
-        if structure_type == Structure.Type.CITY or Structure.Type.SETTLEMENT:
+        if structure_type == Structure.Type.CITY or structure_type == Structure.Type.SETTLEMENT:
             # If a player built a settlement it adds a point.
             # If they built a city, it takes the settlement and adds a point.
             # Either way they get one additional point whenever they build.

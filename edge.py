@@ -10,6 +10,7 @@ class Edge:
         self.id = uuid4()
         self.road: Union[Structure, None] = None
         self.start = start
+        self.owner = None
         self.end = end
         self.location = location
 
@@ -22,4 +23,5 @@ class Edge:
         """
         assert self.road is None
         self.road = Structure(Structure.Type.ROAD, player)
+        self.owner = player
         return self.road

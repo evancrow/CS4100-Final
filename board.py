@@ -1,12 +1,15 @@
+import math
 from random import shuffle
 from typing import Tuple, Dict, Optional, Union
 
+from constants import HEX_SIZE
 from player import Player
 from structure import Structure
 from tile import Tile
 from edge import Edge
 from intersection import Intersection
 from location import Location
+from util import hex_to_pixel, snap
 
 Coordinate = Tuple[int, int]
 
@@ -85,13 +88,13 @@ class Board:
                 structures.append(edge)
 
             start, end = location.coords
-            start_intersection = self.get_at_location(Location.intersection(start[0], start[1]))
-            end_intersection = self.get_at_location(Location.intersection(end[0], end[1]))
+            start_intersection = self.get_all_at_location(Location.intersection(start[0], start[1]))
+            end_intersection = self.get_all_at_location(Location.intersection(end[0], end[1]))
             
             if start_intersection:
-                structures.append(start_intersection)
+                structures += start_intersection
             if end_intersection:
-                structures.append(end_intersection)
+                structures += end_intersection
                 
         return structures
     
@@ -121,13 +124,14 @@ class Board:
         :return: True if the player can build a road, False otherwise.
         """
         if edge.road is not None:
+            print("Road already built")
             return False
 
         all_connected = self.get_all_at_location(edge.location)
         for item in all_connected:
             if item.owner == player:
                 return True
-
+        print("No connected items", all_connected)
         return False
 
     def can_build_structure(self, player: Player, intersection: Intersection) -> bool:
@@ -200,58 +204,38 @@ class Board:
         edges = {}
         intersections = {}
 
-        # Define vertex coordinates relative to a tile.
-        vertex_offsets = [
-            (0, 0, 0),
-            (1, -1, 0),
-            (1, 0, -1),
-            (0, 1, -1),
-            (-1, 1, 0),
-            (-1, 0, 1)
-        ]
-        
-        # Create intersections first.
-        for tile_coord in grid.keys():
-            q, r = tile_coord
-            s = -q - r
+        # Build intersections.
+        for (q, r), tile in grid.items():
+            cx, cy = hex_to_pixel(q, r)
 
-            for i, (vq, vr, vs) in enumerate(vertex_offsets):
-                vertex_coord = (q + vq/3, r + vr/3, s + vs/3)
-                vertex_key = (vertex_coord[0], vertex_coord[1])
-                location = Location.intersection(vertex_key[0], vertex_key[1])
-                
-                if location not in intersections:
-                    adjacent_tiles = []
-                    for adj_q, adj_r in grid.keys():
-                        adj_s = -adj_q - adj_r
-                        # Check if this tile is adjacent to the vertex.
-                        for vq2, vr2, vs2 in vertex_offsets:
-                            if (adj_q + vq2/3, adj_r + vr2/3, adj_s + vs2/3) == vertex_coord:
-                                adjacent_tiles.append(grid[(adj_q, adj_r)])
-                                break
-                    
-                    intersections[location] = Intersection(adjacent_tiles, location)
-        
-        # Now connect intersections and create edges.
-        for tile_coord in grid.keys():
-            q, r = tile_coord
-
+            corners_px = []
             for i in range(6):
-                v1_offset = vertex_offsets[i]
-                v2_offset = vertex_offsets[(i + 1) % 6]
-                
-                v1_coord = (q + v1_offset[0]/3, r + v1_offset[1]/3)
-                v2_coord = (q + v2_offset[0]/3, r + v2_offset[1]/3)
-                
-                location1 = Location.intersection(v1_coord[0], v1_coord[1])
-                location2 = Location.intersection(v2_coord[0], v2_coord[1])
-                edge_location = Location.edge(location1.coords, location2.coords)
-                
-                if edge_location not in edges:
-                    edge = Edge(intersections[location1], intersections[location2], edge_location)
-                    edges[edge_location] = edge
+                angle_deg = 60 * i - 30
+                angle_rad = math.radians(angle_deg)
+                corner_x = cx + HEX_SIZE * math.cos(angle_rad)
+                corner_y = cy + HEX_SIZE * math.sin(angle_rad)
+                location = Location.intersection(*snap(corner_x, corner_y))
+                corners_px.append(location)
 
-                    intersections[location1].add_intersection(intersections[location2])
-                    intersections[location2].add_intersection(intersections[location1])
+                if location not in intersections:
+                    intersections[location] = Intersection([], location)
+
+                if tile not in intersections[location].adjacent_tiles:
+                    intersections[location].adjacent_tiles.append(tile)
+        
+            # Now connect intersections and create edges.
+            for i in range(6):
+                start = corners_px[i]
+                end = corners_px[(i + 1) % 6]
+                edge_loc = Location.edge(start.coords, end.coords)
+                
+                if edge_loc not in edges:
+                    start_intersection = intersections[start]
+                    end_intersection = intersections[end]
+                    edge_obj = Edge(start_intersection, end_intersection, edge_loc)
+                    edges[edge_loc] = edge_obj
+
+                    start_intersection.add_intersection(end_intersection)
+                    end_intersection.add_intersection(start_intersection)
 
         return Board(grid, edges, intersections)

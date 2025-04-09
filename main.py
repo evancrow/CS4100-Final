@@ -1,4 +1,3 @@
-from board import Board
-from terminalUtil import print_board_with_structures
+from gui import start_gui_game
 
-print_board_with_structures(Board.create_default_board())
+start_gui_game()
