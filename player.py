@@ -1,8 +1,5 @@
-from uuid import uuid4
-
 from card import Card
 from structure import Structure
-
 
 class Player:
     def __init__(self, name: str, color: (int, int, int)):
@@ -37,7 +34,15 @@ class Player:
         :param structure: The structure to make.
         :return: True if the user has the cards to make a structure, false otherwise.
         """
-        required = structure.type.required_cards()
+        return self.can_make_structure_of_type(structure.type)
+
+    def can_make_structure_of_type(self, structure_type: Structure.Type):
+        """
+        Checks if the user has the cards to make a structure.
+        :param structure_type: The type of the structure to make.
+        :return: True if the user has the cards to make a structure, false otherwise.
+        """
+        required = structure_type.required_cards()
         card_count = {}
 
         for card in self.cards:
@@ -50,17 +55,18 @@ class Player:
         for resource_type, count in required.items():
             if resource_type not in card_count or card_count[resource_type] < count:
                 return False
-                
+
         return True
 
-    def made_structure(self, structure_type: Structure.Type):
+    def made_structure(self, structure_type: Structure.Type, deduct_resources: bool = True):
         """
         Removes the cards from a users deck after making a structure and adds the correct points.
         :param structure_type: The structure the suer made.
         """
-        for card_type, count in structure_type.required_cards().items():
-            for _ in range(count):
-                self.use_card_of_type(card_type)
+        if deduct_resources:
+            for card_type, count in structure_type.required_cards().items():
+                for _ in range(count):
+                    self.use_card_of_type(card_type)
 
         if structure_type == Structure.Type.CITY or structure_type == Structure.Type.SETTLEMENT:
             # If a player built a settlement it adds a point.

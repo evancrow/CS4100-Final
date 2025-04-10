@@ -3,6 +3,8 @@ import sys
 import math
 from enum import Enum
 
+from action import Build, NoneAction, Action
+from agent import Agent, MinimaxAgent
 from structure import Structure
 from tile import Tile
 from game import Game
@@ -99,10 +101,6 @@ class GameGUI:
         self.intersection_coords = {}
         self.edge_coords = {}
 
-        self.last_settlement_placed = None
-
-        self.initial_placement_phase = True
-        self.turn_counter = 1
         self.awaiting_settlement = True
         self.awaiting_road = False
     
@@ -147,10 +145,10 @@ class GameGUI:
 
         self.message = f"{self.game.current_player.id}'s turn"
 
-        if not self.initial_placement_phase:
+        if self.game.phase is Game.Phase.NORMAL:
             self.roll_dice()
 
-        self.turn_counter += 1
+        self.game.turn_counter += 1
     
     def roll_dice(self):
         """
@@ -221,7 +219,7 @@ class GameGUI:
         self.draw_intersections_and_edges()
         self.draw_player_panel()
 
-        if not self.initial_placement_phase:
+        if self.game.phase is Game.Phase.NORMAL:
             for button in self.buttons:
                 button.draw(self.screen)
 
@@ -365,7 +363,7 @@ class GameGUI:
         if not element:
             return
 
-        if self.initial_placement_phase:
+        if self.game.phase is not Game.Phase.NORMAL:
             if self.awaiting_settlement and element.is_intersection():
                 self.place_initial_settlement(element)
             elif self.awaiting_road and element.is_edge():
@@ -398,14 +396,13 @@ class GameGUI:
         intersection.build_structure(Structure.Type.SETTLEMENT, self.game.current_player)
         self.game.current_player.add_point()
 
-        if self.turn_counter < 3:
+        if self.game.turn_counter < 3:
             self.game.first_round_settlements[self.game.current_player.id].append(intersection)
 
-        self.last_settlement_placed = intersection
         self.game.last_settlement_placed = intersection
-
         self.awaiting_settlement = False
         self.awaiting_road = True
+        self.game.phase = Game.Phase.ROAD
         self.message = "Place a road connected to your settlement"
     
     def place_initial_road(self, location):
@@ -420,8 +417,8 @@ class GameGUI:
             return
 
         is_connected = False
-        if self.last_settlement_placed:
-            if edge.start == self.last_settlement_placed or edge.end == self.last_settlement_placed:
+        if self.game.last_settlement_placed:
+            if edge.start == self.game.last_settlement_placed or edge.end == self.game.last_settlement_placed:
                 is_connected = True
         
         if not is_connected:
@@ -430,44 +427,47 @@ class GameGUI:
 
         edge.build(self.game.current_player)
 
-        if self.turn_counter > 2:
+        if self.game.turn_counter > 2:
             self.distribute_initial_resources()
 
         self.awaiting_road = False
         self.awaiting_settlement = True
         
-        if self.turn_counter <= len(self.game.players):
+        if self.game.turn_counter <= len(self.game.players):
             # If we've gone through all players, switch to second round.
-            if self.turn_counter == len(self.game.players):
+            if self.game.turn_counter == len(self.game.players):
                 self.message = "Second round: Place your second settlement"
             else:
                 self.game.current_player_index = (self.game.current_player_index + 1) % len(self.game.players)
                 self.game.current_player = self.game.players[self.game.current_player_index]
                 self.message = f"{self.game.current_player.id}'s turn to place a settlement"
+
+            self.game.phase = Game.Phase.SETTLEMENT
         else:
             # Move to previous player in reverse order.
             self.game.current_player_index = (self.game.current_player_index - 1) % len(self.game.players)
             self.game.current_player = self.game.players[self.game.current_player_index]
             
             # If we've gone through all players, switch to main game.
-            if self.turn_counter == 4:
-                self.initial_placement_phase = False
+            if self.game.turn_counter == 4:
+                self.game.phase = Game.Phase.NORMAL
                 self.game.current_player_index = 0
                 self.game.current_player = self.game.players[0]
                 self.message = "Main game begins! Roll the dice"
                 self.roll_dice()
             else:
+                self.game.phase = Game.Phase.SETTLEMENT
                 self.message = f"{self.game.current_player.id}'s turn to place a settlement"
 
-        self.turn_counter += 1
+        self.game.turn_counter += 1
 
     def distribute_initial_resources(self):
         """
         After the user places their second settlement, give them the resources.
         :return:
         """
-        if self.last_settlement_placed:
-            for tile in self.last_settlement_placed.adjacent_tiles:
+        if self.game.last_settlement_placed:
+            for tile in self.game.last_settlement_placed.adjacent_tiles:
                 if tile.type != Tile.Type.DESERT:
                     self.game.current_player.add_card(Card(tile.type))
     
@@ -492,7 +492,25 @@ class GameGUI:
             pygame.time.delay(3000)
             pygame.quit()
             sys.exit()
-    
+
+    def handle_agent(self, action: Action):
+        """
+        Handles actions taken by the agent.
+        :param action: The action the agent wants to take.
+        """
+        match action:
+            case Build(type=t, location=loc):
+                match self.game.phase:
+                    case Game.Phase.NORMAL:
+                        self.build(t, loc)
+                        self.end_turn()
+                    case Game.Phase.SETTLEMENT:
+                        self.place_initial_settlement(loc)
+                    case Game.Phase.ROAD:
+                        self.place_initial_road(loc)
+            case NoneAction():
+                self.end_turn()
+
     def run(self):
         """
         The main game loop. Updates the view and handles events.
@@ -501,21 +519,26 @@ class GameGUI:
         
         running = True
         while running:
-            mouse_pos = pygame.mouse.get_pos()
+            if hasattr(self.game.current_player, 'get_action'):
+                agent: Agent = self.game.current_player
+                action = agent.get_action(self.game)
+                self.handle_agent(action)
+            else:
+                mouse_pos = pygame.mouse.get_pos()
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
 
-                button_clicked = False
-                for button in self.buttons:
-                    if button.handle_event(event):
-                        button_clicked = True
+                    button_clicked = False
+                    for button in self.buttons:
+                        if button.handle_event(event):
+                            button_clicked = True
 
-                if not button_clicked and event.type == pygame.MOUSEBUTTONDOWN:
-                    self.handle_board_click()
+                    if not button_clicked and event.type == pygame.MOUSEBUTTONDOWN:
+                        self.handle_board_click()
 
-            self.highlighted_element = self.find_closest_element(mouse_pos)
+                self.highlighted_element = self.find_closest_element(mouse_pos)
             self.draw_board()
 
             pygame.display.flip()
@@ -529,7 +552,7 @@ def start_gui_game():
     Creates players, board, and starts game.
     """
     player1 = Player("Player 1", (51, 93, 184))
-    player2 = Player("Player 2", (184, 51, 71))
+    player2 = MinimaxAgent("Player 2", (184, 51, 71))
     board = Board.create_default_board()
     game = Game(board, [player1, player2])
     

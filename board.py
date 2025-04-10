@@ -131,10 +131,10 @@ class Board:
         for item in all_connected:
             if item.owner == player:
                 return True
-        print("No connected items", all_connected)
+
         return False
 
-    def can_build_structure(self, player: Player, intersection: Intersection) -> bool:
+    def can_build_structure(self, player: Player, intersection: Intersection, intial_placement_rules: bool = False) -> bool:
         """
         Check if a structure can be built at this intersection.
         A player can build a structure if:
@@ -154,10 +154,12 @@ class Board:
             if intersection.structure is not None:
                 return False
 
+        if intial_placement_rules:
+            return True
+
         if player and intersection.location:
             for item in self.get_all_at_location(intersection.location):
-                # Check if edge (by seeing if it has road), and that owners match.
-                if hasattr(item, 'road') and item.road is not None and item.road.owner == player:
+                if item.owner == player:
                     return True
 
             return False
