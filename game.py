@@ -93,12 +93,10 @@ class Game:
 
         # Check if player has the required resources.
         if require_resources and not player.can_make_structure(Structure(structure_type, player)):
-            print("Not enough resources")
             return False
 
         game_element = self.board.get_at_location(location)
         if game_element is None:
-            print("Could not find game element")
             return False
 
         if structure_type == Structure.Type.ROAD:

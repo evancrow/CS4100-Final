@@ -124,7 +124,6 @@ class Board:
         :return: True if the player can build a road, False otherwise.
         """
         if edge.road is not None:
-            print("Road already built")
             return False
 
         all_connected = self.get_all_at_location(edge.location)
