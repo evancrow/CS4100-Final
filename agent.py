@@ -18,11 +18,12 @@ class MultiAgent(Agent):
         self.max_depth = max_depth
 
     def evaluation_function(self):
+        # TODO, make this better!
         return self.points
 
 class MinimaxAgent(MultiAgent):
     def __init__(self, name: str, color: (int, int, int)):
-        super().__init__(name, color, 1)
+        super().__init__(name, color, 2)
 
     def minimax(self, game: Game, current_depth):
         if game.game_winner() or current_depth >= self.max_depth:
