@@ -532,7 +532,7 @@ class GameGUI:
         pygame.display.flip()
         
         next_ai_turn_time = 0
-        ai_turn_delay = 1000
+        ai_turn_delay = 500
         
         running = True
         while running:
