@@ -103,24 +103,24 @@ class Game:
             if location.is_edge():
                 edge = game_element
                 if self.board.can_build_road(player, edge):
-                    player.made_structure(structure_type, require_resources)
                     edge.build(player)
+                    player.made_structure(structure_type, require_resources, None, edge)
                     return True
 
         elif structure_type == Structure.Type.SETTLEMENT:
             if location.is_intersection():
                 intersection = game_element
                 if self.board.can_build_structure(player, intersection, self.phase == Game.Phase.SETTLEMENT):
-                    player.made_structure(structure_type, require_resources, intersection)
                     intersection.build_structure(structure_type, player)
+                    player.made_structure(structure_type, require_resources, intersection)
                     return True
 
         elif structure_type == Structure.Type.CITY:
             if location.is_intersection():
                 intersection = game_element
                 if intersection.can_upgrade_to_city(player):
-                    player.made_structure(structure_type, require_resources)
                     intersection.build_structure(structure_type, player)
+                    player.made_structure(structure_type, require_resources, intersection)
                     return True
         
         return False
@@ -193,6 +193,7 @@ class Game:
     # -- Generating Successors --
     def generate_successor(self, player: Player, action: Action):
         deep_copy = copy.deepcopy(self)
+        deep_copy.handle_roll(Game.roll())
         match action:
             case Build(type=t, location=loc):
                 deep_copy.build(t, loc)

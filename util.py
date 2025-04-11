@@ -1,4 +1,6 @@
 import math
+from collections import Counter
+from itertools import product
 
 from constants import HEX_SIZE, CENTER_X, CENTER_Y
 
@@ -10,3 +12,18 @@ def hex_to_pixel(q, r):
 
 def snap(px, py, digits=3):
     return round(px, digits), round(py, digits)
+
+def estimate_roll_probability(roll):
+    """
+    Estimate the probability of rolling a specific total with fair dice.
+
+    :param roll: The number to roll (i.e. 6, or 12)
+    :return: The probability as a decimal.
+    """
+
+    # Generate all possible roll combinations.
+    outcomes = list(product(range(1, 6 + 1), repeat=2))
+    total_counts = Counter(sum(outcome) for outcome in outcomes)
+
+    total_possibilities = len(outcomes)
+    return total_counts[roll] / total_possibilities if roll in total_counts else 0.0

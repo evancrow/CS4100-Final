@@ -1,6 +1,8 @@
 from card import Card
 from structure import Structure
 from tile import Tile
+from util import estimate_roll_probability
+
 
 class Player:
     def __init__(self, name: str, color: (int, int, int)):
@@ -10,10 +12,12 @@ class Player:
         self.color = color
 
         self.resource_connections = { resource: 0 for resource in Tile.Type }
+        self.resource_connections_probability = {resource: 0 for resource in Tile.Type}
+
         self.locations = set()
         self.cities = 0
-        self.roads = 0
         self.settlements = 0
+        self.roads = []
 
     def add_card(self, card: Card):
         """
@@ -84,6 +88,7 @@ class Player:
             # Either way they get one additional point whenever they build.
             self.add_point()
 
+        # Use probability of getting resource.
         match structure_type:
             case Structure.Type.SETTLEMENT:
                 self.settlements += 1
@@ -91,11 +96,12 @@ class Player:
                 self.settlements -= 1
                 self.cities += 1
             case Structure.Type.ROAD:
-                self.roads += 1
+                self.roads.append(edge)
 
         if intersection:
             for tile in intersection.adjacent_tiles:
                 self.resource_connections[tile.type] += 1
+                self.resource_connections_probability[tile.type] += 1 * estimate_roll_probability(tile.roll)
 
         if edge:
             self.locations.add(edge.start.location)

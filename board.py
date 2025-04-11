@@ -2,7 +2,7 @@ import math
 from random import shuffle
 from typing import Tuple, Dict, Optional, Union
 
-from constants import HEX_SIZE
+from constants import HEX_SIZE, DEFAULT_ROLL_RATIOS, DEFAULT_TILE_RATIO
 from player import Player
 from structure import Structure
 from tile import Tile
@@ -12,27 +12,6 @@ from location import Location
 from util import hex_to_pixel, snap
 
 Coordinate = Tuple[int, int]
-
-DEFAULT_TILE_RATIO = {
-    Tile.Type.FOREST: 4,
-    Tile.Type.PASTURE: 4,
-    Tile.Type.GRAIN: 4,
-    Tile.Type.ORE: 3,
-    Tile.Type.BRICK: 3,
-}
-
-DEFAULT_ROLL_RATIOS = {
-    2: 1,
-    3: 2,
-    4: 2,
-    5: 2,
-    6: 2,
-    8: 2,
-    9: 2,
-    10: 2,
-    11: 2,
-    12: 1
-}
 
 class Board:
     def __init__(
