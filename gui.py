@@ -546,12 +546,12 @@ class GameGUI:
                 
             current_time = pygame.time.get_ticks()
 
+            # AI player.
             if not self.winner and hasattr(self.game.current_player, 'get_action') and current_time >= next_ai_turn_time:
                 self.message = f"{self.game.current_player.id} is thinking..."
                 self.draw_board()
                 pygame.display.flip()
-                
-                # Get and execute AI action.
+
                 agent: Agent = self.game.current_player
                 action = agent.get_action(self.game)
 
@@ -562,7 +562,7 @@ class GameGUI:
                 self.handle_agent(action)
                 next_ai_turn_time = pygame.time.get_ticks() + ai_turn_delay
                 
-            # Handle human player turn
+            # Handle human player.
             elif not hasattr(self.game.current_player, 'get_action'):
                 mouse_pos = pygame.mouse.get_pos()
                 self.highlighted_element = self.find_closest_element(mouse_pos)
@@ -580,7 +580,6 @@ class GameGUI:
                     if not button_clicked and event.type == pygame.MOUSEBUTTONDOWN:
                         self.handle_board_click()
             
-            # Always draw the board on each frame
             self.draw_board()
             pygame.display.flip()
             self.clock.tick(60)
