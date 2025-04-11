@@ -1,18 +1,13 @@
-from time import sleep
-
 import pygame
 import sys
 import math
 from enum import Enum
 
-from action import Build, NoneAction, Action
 from agent import Agent, MinimaxAgent, ExpectimaxAgent
 from structure import Structure
-from tile import Tile
 from game import Game
 from board import Board
-from player import Player
-from card import Card
+from gameManager import GameManager
 from constants import *
 from util import hex_to_pixel
 
@@ -49,13 +44,12 @@ class Button:
             color = self.base_color
         elif self.state == ButtonState.HOVER:
             color = self.hover_color
-        else:  # ACTIVE
+        else:
             color = self.active_color
             
         pygame.draw.rect(screen, color, self.rect)
         pygame.draw.rect(screen, BLACK, self.rect, 2)  # Border
-        
-        # Render text
+
         text_surf = self.font.render(self.text, True, WHITE)
         text_rect = text_surf.get_rect(center=self.rect.center)
         screen.blit(text_surf, text_rect)
@@ -80,9 +74,9 @@ class Button:
                 self.state = ButtonState.NORMAL
         return False
 
-class GameGUI:
+class GUIGameManager(GameManager):
     def __init__(self, game: Game):
-        self.game = game
+        super().__init__(game)
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Catan")
         self.clock = pygame.time.Clock()
@@ -94,19 +88,10 @@ class GameGUI:
 
         self.selected_action = None
         self.highlighted_element = None
-        self.roll_result = None
         self.message = None
         self.buttons = []
-        self.game_over = False
-        self.winner = None
 
         self.setup_ui()
-
-        self.intersection_coords = {}
-        self.edge_coords = {}
-
-        self.awaiting_settlement = True
-        self.awaiting_road = False
     
     def setup_ui(self):
         """
@@ -142,20 +127,14 @@ class GameGUI:
         
         if action == "end_turn":
             self.end_turn()
-        
+    
     def end_turn(self):
         """
         Called whenever the user ends their turn.
         """
-        self.game.end_turn()
+        super().end_turn()
         self.selected_action = None
-
         self.message = f"{self.game.current_player.id}'s turn"
-
-        if self.game.phase is Game.Phase.NORMAL:
-            self.roll_dice()
-
-        self.game.turn_counter += 1
     
     def roll_dice(self):
         """
@@ -394,40 +373,32 @@ class GameGUI:
     def place_initial_settlement(self, location):
         """
         Helps the user place a settlement before the main game starts.
-        :param location: The coord to build at.
         """
         intersection = self.game.board.get_at_location(location)
         
         if not intersection or intersection.structure is not None:
             self.message = "Invalid location: Already occupied"
-            return
+            return False
 
         for adj_intersection in intersection.adjacent_intersections:
             if adj_intersection.structure is not None:
                 self.message = "Too close to another settlement"
-                return
+                return False
 
-        self.game.build(Structure.Type.SETTLEMENT, location)
-
-        if self.game.turn_counter < 3:
-            self.game.first_round_settlements[self.game.current_player.id].append(intersection)
-
-        self.game.last_settlement_placed = intersection
-        self.awaiting_settlement = False
-        self.awaiting_road = True
-        self.game.phase = Game.Phase.ROAD
-        self.message = "Place a road connected to your settlement"
+        if super().place_initial_settlement(location):
+            self.message = "Place a road connected to your settlement"
+            return True
+        return False
     
     def place_initial_road(self, location):
         """
         Helps a user place a road before the main game starts and after a settlement.
-        :param location: The location to build on.
         """
         edge = self.game.board.get_at_location(location)
 
         if not edge or edge.road is not None:
             self.message = "Invalid location: Already occupied"
-            return
+            return False
 
         is_connected = False
         if self.game.last_settlement_placed:
@@ -436,61 +407,27 @@ class GameGUI:
         
         if not is_connected:
             self.message = "Road must connect to your settlement"
-            return
+            return False
 
-        self.game.build(Structure.Type.ROAD, location)
-
-        if self.game.turn_counter > 2:
-            self.distribute_initial_resources()
-
-        self.awaiting_road = False
-        self.awaiting_settlement = True
-        
-        if self.game.turn_counter <= len(self.game.players):
-            # If we've gone through all players, switch to second round.
-            if self.game.turn_counter == len(self.game.players):
-                self.message = "Second round: Place your second settlement"
+        if super().place_initial_road(location):
+            if self.game.turn_counter <= len(self.game.players):
+                if self.game.turn_counter == len(self.game.players):
+                    self.message = "Second round: Place your second settlement"
+                else:
+                    self.message = f"{self.game.current_player.id}'s turn to place a settlement"
             else:
-                self.game.current_player_index = (self.game.current_player_index + 1) % len(self.game.players)
-                self.game.current_player = self.game.players[self.game.current_player_index]
-                self.message = f"{self.game.current_player.id}'s turn to place a settlement"
-
-            self.game.phase = Game.Phase.SETTLEMENT
-        else:
-            # Move to previous player in reverse order.
-            self.game.current_player_index = (self.game.current_player_index - 1) % len(self.game.players)
-            self.game.current_player = self.game.players[self.game.current_player_index]
-            
-            # If we've gone through all players, switch to main game.
-            if self.game.turn_counter == 4:
-                self.game.phase = Game.Phase.NORMAL
-                self.game.current_player_index = 0
-                self.game.current_player = self.game.players[0]
-                self.message = "Main game begins! Roll the dice"
-                self.roll_dice()
-            else:
-                self.game.phase = Game.Phase.SETTLEMENT
-                self.message = f"{self.game.current_player.id}'s turn to place a settlement"
-
-        self.game.turn_counter += 1
-
-    def distribute_initial_resources(self):
-        """
-        After the user places their second settlement, give them the resources.
-        :return:
-        """
-        if self.game.last_settlement_placed:
-            for tile in self.game.last_settlement_placed.adjacent_tiles:
-                if tile.type != Tile.Type.DESERT:
-                    self.game.current_player.add_card(Card(tile.type))
+                if self.game.turn_counter == 4:
+                    self.message = "Main game begins! Roll the dice"
+                else:
+                    self.message = f"{self.game.current_player.id}'s turn to place a settlement"
+            return True
+        return False
     
     def build(self, structure_type, location):
         """
         Handles building a structure during the main game.
-        :param structure_type: The type of structure to build
-        :param location: The location to build at.
         """
-        success = self.game.build(structure_type, location)
+        success = super().build(structure_type, location)
         
         if success:
             self.message = f"{structure_type.value} built successfully!"
@@ -499,29 +436,10 @@ class GameGUI:
 
         self.selected_action = None
 
-        winner = self.game.game_winner()
-        if winner and not self.game_over:
-            self.game_over = True
-            self.winner = winner
-            self.message = f"{winner.id} wins with {winner.points} victory points!"
-
-    def handle_agent(self, action: Action):
-        """
-        Handles actions taken by the agent.
-        :param action: The action the agent wants to take.
-        """
-        match action:
-            case Build(type=t, location=loc):
-                match self.game.phase:
-                    case Game.Phase.NORMAL:
-                        self.build(t, loc)
-                        self.end_turn()
-                    case Game.Phase.SETTLEMENT:
-                        self.place_initial_settlement(loc)
-                    case Game.Phase.ROAD:
-                        self.place_initial_road(loc)
-            case NoneAction():
-                self.end_turn()
+        if self.winner and self.game_over:
+            self.message = f"{self.winner.id} wins with {self.winner.points} victory points!"
+            
+        return success
 
     def run(self):
         """
@@ -596,7 +514,7 @@ def start_gui_game():
     board = Board.create_default_board()
     game = Game(board, [player1, player2])
     
-    gui = GameGUI(game)
+    gui = GUIGameManager(game)
     gui.run()
 
 if __name__ == "__main__":

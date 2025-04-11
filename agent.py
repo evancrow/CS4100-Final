@@ -224,8 +224,7 @@ class ExpectimaxAgent(MultiAgent):
 
         for action in actions:
             total = 0
-            for roll in range(1, 13):
-                print(roll)
+            for roll in range(2, 13):
                 prob = estimate_roll_probability(roll)
 
                 successor = game.generate_successor(current_player, action, roll)
