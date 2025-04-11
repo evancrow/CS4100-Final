@@ -1,5 +1,6 @@
 from card import Card
 from structure import Structure
+from tile import Tile
 
 class Player:
     def __init__(self, name: str, color: (int, int, int)):
@@ -7,6 +8,12 @@ class Player:
         self.cards: [Card] = []
         self.points = 0
         self.color = color
+
+        self.resource_connections = { resource: 0 for resource in Tile.Type }
+        self.locations = set()
+        self.cities = 0
+        self.roads = 0
+        self.settlements = 0
 
     def add_card(self, card: Card):
         """
@@ -58,10 +65,13 @@ class Player:
 
         return True
 
-    def made_structure(self, structure_type: Structure.Type, deduct_resources: bool = True):
+    def made_structure(self, structure_type: Structure.Type, deduct_resources: bool = True, intersection = None, edge = None):
         """
         Removes the cards from a users deck after making a structure and adds the correct points.
-        :param structure_type: The structure the suer made.
+        :param structure_type: The structure the user made.
+        :param deduct_resources: Whether to deduct the resources to build a structure from a users account.
+        :param intersection: The location built on.
+        :param edge: The edge built on.
         """
         if deduct_resources:
             for card_type, count in structure_type.required_cards().items():
@@ -73,6 +83,23 @@ class Player:
             # If they built a city, it takes the settlement and adds a point.
             # Either way they get one additional point whenever they build.
             self.add_point()
+
+        match structure_type:
+            case Structure.Type.SETTLEMENT:
+                self.settlements += 1
+            case Structure.Type.CITY:
+                self.settlements -= 1
+                self.cities += 1
+            case Structure.Type.ROAD:
+                self.roads += 1
+
+        if intersection:
+            for tile in intersection.adjacent_tiles:
+                self.resource_connections[tile.type] += 1
+
+        if edge:
+            self.locations.add(edge.start.location)
+            self.locations.add(edge.end.location)
 
     def add_point(self):
         """

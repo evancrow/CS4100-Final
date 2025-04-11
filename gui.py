@@ -1,3 +1,5 @@
+from time import sleep
+
 import pygame
 import sys
 import math
@@ -95,6 +97,8 @@ class GameGUI:
         self.roll_result = None
         self.message = None
         self.buttons = []
+        self.game_over = False
+        self.winner = None
 
         self.setup_ui()
 
@@ -130,6 +134,9 @@ class GameGUI:
         Handles whenever the user selects an action.
         :param action: The action taken by user.
         """
+        if self.game.phase is not Game.Phase.NORMAL or self.game_over:
+            return
+        
         self.selected_action = action
         self.highlighted_element = None
         
@@ -219,7 +226,7 @@ class GameGUI:
         self.draw_intersections_and_edges()
         self.draw_player_panel()
 
-        if self.game.phase is Game.Phase.NORMAL:
+        if self.game.phase is Game.Phase.NORMAL and not self.game_over:
             for button in self.buttons:
                 button.draw(self.screen)
 
@@ -328,6 +335,13 @@ class GameGUI:
         if self.selected_action:
             action_text = self.font.render(f"Selected: {self.selected_action.replace('_', ' ').title()}", True, BLACK)
             self.screen.blit(action_text, (message_area.x + 250, message_area.y + 10))
+
+        if self.game_over and self.winner:
+            victory_text = self.big_font.render(f"{self.winner.id} wins!", True, self.winner.color)
+            text_rect = victory_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+            pygame.draw.rect(self.screen, (255, 255, 255), text_rect.inflate(20, 20))
+            pygame.draw.rect(self.screen, self.winner.color, text_rect.inflate(20, 20), 3)
+            self.screen.blit(victory_text, text_rect)
     
     def find_closest_element(self, mouse_pos, max_distance=20):
         """
@@ -393,8 +407,7 @@ class GameGUI:
                 self.message = "Too close to another settlement"
                 return
 
-        intersection.build_structure(Structure.Type.SETTLEMENT, self.game.current_player)
-        self.game.current_player.add_point()
+        self.game.build(Structure.Type.SETTLEMENT, location)
 
         if self.game.turn_counter < 3:
             self.game.first_round_settlements[self.game.current_player.id].append(intersection)
@@ -425,7 +438,7 @@ class GameGUI:
             self.message = "Road must connect to your settlement"
             return
 
-        edge.build(self.game.current_player)
+        self.game.build(Structure.Type.ROAD, location)
 
         if self.game.turn_counter > 2:
             self.distribute_initial_resources()
@@ -487,11 +500,10 @@ class GameGUI:
         self.selected_action = None
 
         winner = self.game.game_winner()
-        if winner:
+        if winner and not self.game_over:
+            self.game_over = True
+            self.winner = winner
             self.message = f"{winner.id} wins with {winner.points} victory points!"
-            pygame.time.delay(3000)
-            pygame.quit()
-            sys.exit()
 
     def handle_agent(self, action: Action):
         """
@@ -516,19 +528,49 @@ class GameGUI:
         The main game loop. Updates the view and handles events.
         """
         self.message = "Initial placement: Place your first settlement"
+        self.draw_board()
+        pygame.display.flip()
+        
+        next_ai_turn_time = 0
+        ai_turn_delay = 1000
         
         running = True
         while running:
-            if hasattr(self.game.current_player, 'get_action'):
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                    break
+            
+            if not running:
+                break
+                
+            current_time = pygame.time.get_ticks()
+
+            if not self.winner and hasattr(self.game.current_player, 'get_action') and current_time >= next_ai_turn_time:
+                self.message = f"{self.game.current_player.id} is thinking..."
+                self.draw_board()
+                pygame.display.flip()
+                
+                # Get and execute AI action.
                 agent: Agent = self.game.current_player
                 action = agent.get_action(self.game)
-                self.handle_agent(action)
-            else:
-                mouse_pos = pygame.mouse.get_pos()
 
+                self.draw_board()
+                pygame.display.flip()
+                pygame.time.delay(500)
+
+                self.handle_agent(action)
+                next_ai_turn_time = pygame.time.get_ticks() + ai_turn_delay
+                
+            # Handle human player turn
+            elif not hasattr(self.game.current_player, 'get_action'):
+                mouse_pos = pygame.mouse.get_pos()
+                self.highlighted_element = self.find_closest_element(mouse_pos)
+                
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         running = False
+                        break
 
                     button_clicked = False
                     for button in self.buttons:
@@ -537,10 +579,9 @@ class GameGUI:
 
                     if not button_clicked and event.type == pygame.MOUSEBUTTONDOWN:
                         self.handle_board_click()
-
-                self.highlighted_element = self.find_closest_element(mouse_pos)
+            
+            # Always draw the board on each frame
             self.draw_board()
-
             pygame.display.flip()
             self.clock.tick(60)
         
@@ -551,7 +592,7 @@ def start_gui_game():
     """
     Creates players, board, and starts game.
     """
-    player1 = Player("Player 1", (51, 93, 184))
+    player1 = MinimaxAgent("Player 1", (51, 93, 184))
     player2 = MinimaxAgent("Player 2", (184, 51, 71))
     board = Board.create_default_board()
     game = Game(board, [player1, player2])

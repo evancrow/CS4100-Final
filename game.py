@@ -110,8 +110,8 @@ class Game:
         elif structure_type == Structure.Type.SETTLEMENT:
             if location.is_intersection():
                 intersection = game_element
-                if self.board.can_build_structure(player, intersection):
-                    player.made_structure(structure_type, require_resources)
+                if self.board.can_build_structure(player, intersection, self.phase == Game.Phase.SETTLEMENT):
+                    player.made_structure(structure_type, require_resources, intersection)
                     intersection.build_structure(structure_type, player)
                     return True
 
@@ -198,5 +198,7 @@ class Game:
                 deep_copy.build(t, loc)
             case NoneAction():
                 pass
+
+        deep_copy.end_turn()
 
         return deep_copy

@@ -133,7 +133,7 @@ class Board:
 
         return False
 
-    def can_build_structure(self, player: Player, intersection: Intersection, intial_placement_rules: bool = False) -> bool:
+    def can_build_structure(self, player: Player, intersection: Intersection, initial_placement_rules: bool = False) -> bool:
         """
         Check if a structure can be built at this intersection.
         A player can build a structure if:
@@ -143,24 +143,27 @@ class Board:
 
         :param player: The player who wants to build.
         :param intersection: The intersection to check.
+        :param initial_placement_rules: True if rules are different for initial placing rules.
         :return: True if a structure can be built, False otherwise.
         """
         if intersection.structure is not None:
             return False
 
         # Check if there are any structures at adjacent intersections.
-        for intersection in intersection.adjacent_intersections:
-            if intersection.structure is not None:
+        for adj_intersection in intersection.adjacent_intersections:
+            if adj_intersection.structure is not None:
                 return False
 
-        if intial_placement_rules:
+        if initial_placement_rules:
             return True
 
+        # Check that player has a road connecting directly to this intersection.
         if player and intersection.location:
-            for item in self.get_all_at_location(intersection.location):
-                if item.owner == player:
+            for edge_loc, edge in self.edges.items():
+                edge_start, edge_end = edge_loc.coords
+                if (edge_start == intersection.location.coords or edge_end == intersection.location.coords) and edge.road and edge.road.owner == player:
                     return True
-
+                    
             return False
 
         return True
