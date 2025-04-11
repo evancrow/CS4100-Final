@@ -5,6 +5,7 @@ from game import Game
 from tile import Tile
 from player import Player
 from constants import RESOURCE_VALUES
+from util import estimate_roll_probability
 
 class Agent(Player):
     def __init__(self, name: str, color: (int, int, int)):
@@ -123,6 +124,7 @@ class MultiAgent(Agent):
                     # Recursively expand from this new road.
                     self._expand_road_chain(current_chain, roads, visited_roads)
 
+# -- MINIMAX -- #
 class MinimaxAgent(MultiAgent):
     def __init__(self, name: str, color: (int, int, int)):
         super().__init__(name, color, 2)
@@ -132,17 +134,17 @@ class MinimaxAgent(MultiAgent):
             return None, self.evaluation_function(game)
 
         next_depth = current_depth + 1
+        actions = game.get_legal_actions(game.current_player)
+        shuffle(actions)
 
         if game.current_player.id == self.id:
-            return self.max_val(game, game.current_player, next_depth)
+            return self.max_val(game, game.current_player, actions, next_depth)
         else:
-            return self.min_val(game, game.current_player, next_depth)
+            return self.min_val(game, game.current_player, actions, next_depth)
 
-    def max_val(self, game, current_player, next_depth):
+    def max_val(self, game, current_player, actions, next_depth):
         best_action = None
         best_score = float('-inf')
-        actions = game.get_legal_actions(current_player)
-        shuffle(actions)
 
         for action in actions:
             successor = game.generate_successor(current_player, action)
@@ -154,10 +156,9 @@ class MinimaxAgent(MultiAgent):
 
         return best_action, best_score
 
-    def min_val(self, game, current_player, next_depth):
+    def min_val(self, game, current_player, actions, next_depth):
         best_action = None
         best_score = float('inf')
-        actions = game.get_legal_actions(current_player)
 
         for action in actions:
             successor = game.generate_successor(current_player, action)
@@ -171,4 +172,72 @@ class MinimaxAgent(MultiAgent):
 
     def get_action(self, game: Game):
         action, _ = self.minimax(game, 0)
+        return action or NoneAction()
+
+# -- EXPECTIMAX --#
+class ExpectimaxAgent(MultiAgent):
+    def __init__(self, name: str, color: (int, int, int)):
+        super().__init__(name, color, 1)
+
+    def expectimax(self, game: Game, current_depth: int):
+        """
+        Expectimax function to calculate the expected value of a game.
+
+        :param game: The current game state.
+        :param current_depth: The current depth.
+        :return: The EV.
+        """
+        if game.game_winner() or current_depth >= self.max_depth:
+            return None, self.evaluation_function(game)
+
+        next_depth = current_depth + 1
+        actions = game.get_legal_actions(game.current_player)
+        shuffle(actions)
+
+        if game.current_player.id == self.id:
+            return self.max_val(game, game.current_player, actions, next_depth)
+        else:
+            return self.min_val(game, game.current_player, actions, next_depth)
+
+    def max_val(self, game, current_player, actions, next_depth):
+        best_action = None
+        best_score = float('-inf')
+
+        for action in actions:
+            total = 0
+            for roll in range(1, 13):
+                prob = estimate_roll_probability(roll)
+
+                successor = game.generate_successor(current_player, action, roll)
+                _, score = self.expectimax(successor, next_depth)
+                total += prob * score
+
+            if total > best_score:
+                best_score = total
+                best_action = action
+
+        return best_action, best_score
+
+    def min_val(self, game, current_player, actions, next_depth):
+        best_action = None
+        best_score = float('inf')
+
+        for action in actions:
+            total = 0
+            for roll in range(1, 13):
+                print(roll)
+                prob = estimate_roll_probability(roll)
+
+                successor = game.generate_successor(current_player, action, roll)
+                _, score = self.expectimax(successor, next_depth)
+                total += prob * score
+
+            if total < best_score:
+                best_score = total
+                best_action = action
+
+        return best_action, best_score
+
+    def get_action(self, game: Game):
+        action, _ = self.expectimax(game, 0)
         return action or NoneAction()

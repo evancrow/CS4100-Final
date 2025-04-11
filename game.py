@@ -191,9 +191,9 @@ class Game:
         return None
 
     # -- Generating Successors --
-    def generate_successor(self, player: Player, action: Action):
+    def generate_successor(self, player: Player, action: Action, roll: int = None):
         deep_copy = copy.deepcopy(self)
-        deep_copy.handle_roll(Game.roll())
+        deep_copy.handle_roll(roll or Game.roll())
         match action:
             case Build(type=t, location=loc):
                 deep_copy.build(t, loc)

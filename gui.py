@@ -6,7 +6,7 @@ import math
 from enum import Enum
 
 from action import Build, NoneAction, Action
-from agent import Agent, MinimaxAgent
+from agent import Agent, MinimaxAgent, ExpectimaxAgent
 from structure import Structure
 from tile import Tile
 from game import Game
@@ -592,7 +592,7 @@ def start_gui_game():
     Creates players, board, and starts game.
     """
     player1 = MinimaxAgent("Player 1", (51, 93, 184))
-    player2 = MinimaxAgent("Player 2", (184, 51, 71))
+    player2 = ExpectimaxAgent("Player 2", (184, 51, 71))
     board = Board.create_default_board()
     game = Game(board, [player1, player2])
     
